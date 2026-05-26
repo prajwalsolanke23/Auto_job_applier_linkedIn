@@ -184,7 +184,7 @@
             });
         }
 
-        fetch('http://localhost:5000/applied-jobs')
+        fetch('/applied-jobs')
             .then(response => response.json())
             .then(jobs => {
                 jobsData = jobs;

@@ -24,20 +24,20 @@ version:    26.01.20.5.08
 default_resume_path = "all resumes/default/resume.pdf"      # (In Development)
 
 # What do you want to answer for questions that ask about years of experience you have, this is different from current_experience? 
-years_of_experience = "5"          # A number in quotes Eg: "0","1","2","3","4", etc.
+years_of_experience = "4"          # A number in quotes Eg: "0","1","2","3","4", etc.
 
 # Do you need visa sponsorship now or in future?
-require_visa = "No"               # "Yes" or "No"
+require_visa = "Yes"               # "Yes" or "No"
 
 # What is the link to your portfolio website, leave it empty as "", if you want to leave this question unanswered
-website = "https://github.com/GodsScion"                        # "www.example.bio" or "" and so on....
+website = "https://github.com/prajwalsolanke23"                        # "www.example.bio" or "" and so on....
 
 # Please provide the link to your LinkedIn profile.
-linkedIn = "https://www.linkedin.com/in/saivigneshgolla/"       # "https://www.linkedin.com/in/example" or "" and so on...
+linkedIn = "https://www.linkedin.com/in/prajwalsolanke"       # "https://www.linkedin.com/in/example" or "" and so on...
 
 # What is the status of your citizenship? # If left empty as "", tool will not answer the question. However, note that some companies make it compulsory to be answered
 # Valid options are: "U.S. Citizen/Permanent Resident", "Non-citizen allowed to work for any employer", "Non-citizen allowed to work for current employer", "Non-citizen seeking work authorization", "Canadian Citizen/Permanent Resident" or "Other"
-us_citizenship = "U.S. Citizen/Permanent Resident"
+us_citizenship = "Non-citizen seeking work authorization"
 
 
 
@@ -84,12 +84,11 @@ then it will divide by 30 or 7 and answer respectively. Examples:
 '''
 
 # Your LinkedIn headline in quotes Eg: "Software Engineer @ Google, Masters in Computer Science", "Recent Grad Student @ MIT, Computer Science"
-linkedin_headline = "Full Stack Developer with Masters in Computer Science and 4+ years of experience" # "Headline" or "" to leave this question unanswered
+linkedin_headline = "QA Automation Engineer | Playwright | Selenium | Java | JavaScript" # "Headline" or "" to leave this question unanswered
 
 # Your summary in quotes, use \n to add line breaks if using single quotes "Summary".You can skip \n if using triple quotes """Summary"""
 linkedin_summary = """
-I'm a Senior Software Engineer at Amazon with Masters in CS and 4+ years of experience in developing and maintaining Full Stack Web applications and cloud solutions. 
-Specialized in React, Node.js, and Python.
+Highly proficient Automation Test Engineer with 3 years and 10 months of hands-on experience in developing and executing robust test automation strategies. Expert in modern testing frameworks, including Playwright and Selenium, leveraging JavaScript and Java for comprehensive, cross-browser testing. Proven success in industrial automation projects at Siemens Technology, implementing BDD frameworks with Cucumber and optimizing CI/CD pipelines. Adept at driving quality and aligning testing objectives with critical business deliverables.
 """
 
 '''
@@ -105,7 +104,70 @@ Cover Letter
 # Your user_information_all letter in quotes, use \n to add line breaks if using single quotes "user_information_all".You can skip \n if using triple quotes """user_information_all""" (This question makes sense though)
 # We use this to pass to AI to generate answer from information , Assuing Information contians eg: resume  all the information like name, experience, skills, Country, any illness etc. 
 user_information_all ="""
-User Information
+PRAJWAL SOLANKE
+Pune • +91 966 575 8443• prajwalsolanke23@gmail.com • linkedin.com/in/prajwalsolanke •
+github.com/prajwalsolanke23
+QA AUTOMATION ENGINEER
+
+Highly proficient Automation Test Engineer with 3 years and 10 months of hands-on experience in
+developing and executing robust test automation strategies. Expert in modern testing frameworks,
+including Playwright and Selenium, leveraging JavaScript and Java for comprehensive, cross-browser
+testing. Proven success in industrial automation projects at Siemens Technology, implementing BDD
+frameworks with Cucumber and optimizing CI/CD pipelines. Adept at driving quality and aligning testing
+objectives with critical business deliverables.
+
+WORK EXPERIENCE
+Siemens Technology 02/2025 - Present
+SOFTWARE TEST AUTOMATION ENGINEER Pune, India
+• Pioneered adoption of the Playwright framework (JavaScript) to build and maintain highly reliable, fast
+End-to-End (E2E) test suites for industrial automation software.
+• Designed and implemented a scalable BDD framework integrated with Cucumber, ensuring test
+scenarios accurately reflect complex industrial business requirements.
+• Reduced E2E regression cycle time by over 40% by optimizing Playwright test execution across multiple
+environments.
+• Integrated test automation into CI/CD pipelines using Jenkins and Git, ensuring continuous validation
+of software releases.
+• Conducted API testing using Postman and incorporated UI testing with Selenium WebDriver for legacy
+system components.
+
+Cybercorp Technologies 08/2024 - 01/2025
+QA AUTOMATION ENGINEER Pune, India
+• Designed and built a comprehensive E2E test automation framework from scratch using Selenium
+WebDriver, Java, and TestNG.
+• Configured and managed all dependencies via Maven to ensure a robust and scalable framework
+architecture.
+• Successfully automated approximately 70 regression test cases, significantly reducing the manual
+regression testing cycle.
+
+Cognizant Technology Solutions 05/2022 - 07/2024
+QA AUTOMATION ENGINEER Pune, India
+• Automated a large suite of regression test cases using Java, Selenium WebDriver, and TestNG,
+achieving a 30% reduction in manual testing effort.
+• Managed test execution, defect lifecycle, and bug tracking using the Rally project management tool.
+• Authored detailed test plans, test closure reports, and performed root cause analysis to drive QA
+process improvements.
+
+EDUCATION
+Bachelor of Engineering
+Savitribai Phule Pune University • GPA: 8.25 / 10 First Class with Distinction
+Pune • 01/2022
+
+CERTIFICATIONS
+Playwright with JavaScript Automation
+Selenium with Java Automation Testing
+TestNG Framework Mastery
+Cucumber BDD Framework Development
+Project Management Tool — Rally
+GitHub & GitHub Copilot
+
+SKILLS
+Automation Tools: Cucumber, Playwright, Selenium Grid, Selenium WebDriver
+Frameworks: BDD, Data-Driven Testing, Maven, Page Object Model (POM), TestNG
+Languages: Java, JavaScript
+Testing Expertise: API Testing (Postman), BDD, End-to-End, Functional, Regression
+CI/CD Tools: Git, Jenkins
+Project Mgmt: Jira, Rally
+Reporting: Extent Reports, Test Documentation
 """
 ##<
 '''
@@ -113,7 +175,7 @@ Note: If left empty as "", the tool will not answer the question. However, note 
 ''' 
 
 # Name of your most recent employer
-recent_employer = "Not Applicable" # "", "Lala Company", "Google", "Snowflake", "Databricks"
+recent_employer = "Siemens Technology" # "", "Lala Company", "Google", "Snowflake", "Databricks"
 
 # Example question: "On a scale of 1-10 how much experience do you have building web or mobile applications? 1 being very little or only in school, 10 being that you have built and launched applications to real users"
 confidence_level = "8"             # Any number between "1" to "10" including 1 and 10, put it in quotes ""
@@ -125,7 +187,7 @@ confidence_level = "8"             # Any number between "1" to "10" including 1 
 
 ## Allow Manual Inputs
 # Should the tool pause before every submit application during easy apply to let you check the information?
-pause_before_submit = True         # True or False, Note: True or False are case-sensitive
+pause_before_submit = False         # True or False, Note: True or False are case-sensitive
 '''
 Note: Will be treated as False if `run_in_background = True`
 '''
