@@ -37,7 +37,7 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 
 from config.personals import *
 from config.questions import *
-from config.search import *
+from config.search import SEARCH_PREFERENCES, JOB_FILTERS, JOB_SKIPPING
 from config.secrets import use_AI, username, password, ai_provider
 from config.settings import *
 
@@ -185,16 +185,17 @@ def set_search_location() -> None:
     '''
     Function to set search location
     '''
-    if search_location.strip():
+    loc = SEARCH_PREFERENCES["search_location"].strip()
+    if loc:
         try:
-            print_lg(f'Setting search location as: "{search_location.strip()}"')
-            search_location_ele = try_xp(driver, ".//input[@aria-label='City, state, or zip code'and not(@disabled)]", False) #  and not(@aria-hidden='true')]")
-            text_input(actions, search_location_ele, search_location, "Search Location")
+            print_lg(f'Setting search location as: "{loc}"')
+            search_location_ele = try_xp(driver, ".//input[@aria-label='City, state, or zip code'and not(@disabled)]", False)
+            text_input(actions, search_location_ele, loc, "Search Location")
         except ElementNotInteractableException:
             try_xp(driver, ".//label[@class='jobs-search-box__input-icon jobs-search-box__keywords-label']")
             actions.send_keys(Keys.TAB, Keys.TAB).perform()
             actions.key_down(Keys.CONTROL).send_keys("a").key_up(Keys.CONTROL).perform()
-            actions.send_keys(search_location.strip()).perform()
+            actions.send_keys(loc).perform()
             sleep(2)
             actions.send_keys(Keys.ENTER).perform()
             try_xp(driver, ".//button[@aria-label='Cancel']")
@@ -205,7 +206,7 @@ def set_search_location() -> None:
 
 def apply_filters() -> None:
     '''
-    Function to apply job search filters
+    Function to apply job search filters sequentially based on UI layout
     '''
     set_search_location()
 
@@ -213,47 +214,132 @@ def apply_filters() -> None:
         recommended_wait = 1 if click_gap < 1 else 0
 
         wait.until(EC.presence_of_element_located((By.XPATH, '//button[normalize-space()="All filters"]'))).click()
-        buffer(recommended_wait)
+        try:
+            wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@role="dialog" or contains(@class, "search-reusables__side-panel") or contains(@class, "artdeco-modal")]')))
+        except Exception as modal_wait_err:
+            print_lg("Side panel visibility wait failed, continuing...", modal_wait_err)
+        buffer(3)
 
-        wait_span_click(driver, sort_by)
-        wait_span_click(driver, date_posted)
-        buffer(recommended_wait)
-
-        multi_sel_noWait(driver, experience_level) 
-        multi_sel_noWait(driver, companies, actions)
-        if experience_level or companies: buffer(recommended_wait)
-
-        multi_sel_noWait(driver, job_type)
-        multi_sel_noWait(driver, on_site)
-        if job_type or on_site: buffer(recommended_wait)
-
-        if easy_apply_only: boolean_button_click(driver, actions, "Easy Apply")
+        from modules.clickers_and_finders import is_filter_selected
         
-        multi_sel_noWait(driver, location)
-        multi_sel_noWait(driver, industry)
-        if location or industry: buffer(recommended_wait)
+        for attempt in range(3):
+            all_valid = True
+            
+            def check_and_click(text, is_toggle=False):
+                nonlocal all_valid
+                if text and not is_filter_selected(driver, text):
+                    all_valid = False
+                    if is_toggle:
+                        boolean_button_click(driver, actions, text)
+                    else:
+                        wait_span_click(driver, text)
+            
+            def check_and_multi_click(texts):
+                nonlocal all_valid
+                for text in texts:
+                    if text and not is_filter_selected(driver, text):
+                        all_valid = False
+                        multi_sel_noWait(driver, [text])
 
-        multi_sel_noWait(driver, job_function)
-        multi_sel_noWait(driver, job_titles)
-        if job_function or job_titles: buffer(recommended_wait)
-
-        if under_10_applicants: boolean_button_click(driver, actions, "Under 10 applicants")
-        if in_your_network: boolean_button_click(driver, actions, "In your network")
-        if fair_chance_employer: boolean_button_click(driver, actions, "Fair Chance Employer")
-
-        wait_span_click(driver, salary)
-        buffer(recommended_wait)
+            # 1. Sort by
+            check_and_click(JOB_FILTERS["sort_by"])
         
-        multi_sel_noWait(driver, benefits)
-        multi_sel_noWait(driver, commitments)
-        if benefits or commitments: buffer(recommended_wait)
+            # 2. Date posted
+            check_and_click(JOB_FILTERS["date_posted"])
+            buffer(recommended_wait)
 
-        show_results_button: WebElement = driver.find_element(By.XPATH, '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply current filters to show")]')
-        driver.execute_script("arguments[0].click();", show_results_button)
+            # 3. Experience level
+            check_and_multi_click(JOB_FILTERS["experience_level"])
+        
+            # 4. Company (Dynamic filters are harder to validate simply, so we apply them only on first attempt to avoid duplicates)
+            if attempt == 0 and JOB_FILTERS["companies"]:
+                from modules.clickers_and_finders import add_dynamic_filter
+                add_dynamic_filter(driver, actions, "company", JOB_FILTERS["companies"])
+            buffer(recommended_wait)
 
-        global pause_after_filters
-        if pause_after_filters and "Turn off Pause after search" == pyautogui.confirm("These are your configured search results and filter. It is safe to change them while this dialog is open, any changes later could result in errors and skipping this search run.", "Please check your results", ["Turn off Pause after search", "Look's good, Continue"]):
-            pause_after_filters = False
+            # 5. Job type
+            check_and_multi_click(JOB_FILTERS["job_type"])
+            
+            # 6. Remote
+            check_and_multi_click(JOB_FILTERS["on_site"])
+            buffer(recommended_wait)
+
+            # 7. Easy Apply
+            check_and_click("Easy Apply", is_toggle=True) if JOB_FILTERS["easy_apply_only"] else None
+        
+        # 8. Has verifications (Not mapped in config currently)
+        
+            # 9. Location
+            if attempt == 0 and JOB_FILTERS["location"]:
+                from modules.clickers_and_finders import add_dynamic_filter
+                add_dynamic_filter(driver, actions, "location", JOB_FILTERS["location"])
+                
+            # 10. Industry
+            if attempt == 0 and JOB_FILTERS["industry"]:
+                from modules.clickers_and_finders import add_dynamic_filter
+                add_dynamic_filter(driver, actions, "industry", JOB_FILTERS["industry"])
+            buffer(recommended_wait)
+
+            # 11. Job function
+            if attempt == 0 and JOB_FILTERS["job_function"]:
+                from modules.clickers_and_finders import add_dynamic_filter
+                add_dynamic_filter(driver, actions, "job function", JOB_FILTERS["job_function"])
+                
+            # 12. Title
+            if attempt == 0 and JOB_FILTERS["job_titles"]:
+                from modules.clickers_and_finders import add_dynamic_filter
+                add_dynamic_filter(driver, actions, "title", JOB_FILTERS["job_titles"])
+            buffer(recommended_wait)
+
+            # 13. Under 10 applicants
+            check_and_click("Under 10 applicants", is_toggle=True) if JOB_FILTERS["under_10_applicants"] else None
+            
+            # 14. In your network
+            check_and_click("In your network", is_toggle=True) if JOB_FILTERS["in_your_network"] else None
+            
+            # 15. Fair Chance Employer
+            check_and_click("Fair Chance Employer", is_toggle=True) if JOB_FILTERS["fair_chance_employer"] else None
+
+            # Salary (Out of order on some UI, but keeping it here)
+            check_and_click(JOB_FILTERS["salary"])
+            buffer(recommended_wait)
+            
+            # 16. Benefits
+            check_and_multi_click(JOB_FILTERS["benefits"])
+            
+            # 17. Commitments
+            check_and_multi_click(JOB_FILTERS["commitments"])
+            buffer(recommended_wait)
+            
+            if all_valid:
+                print_lg(f"All filters validated successfully on attempt {attempt+1}!")
+                break
+            else:
+                print_lg(f"Some filters were missed. Retrying... (Attempt {attempt+1}/3)")
+                buffer(2)
+
+        # Give some time for asynchronous filter count loading to settle
+        buffer(3) # Added 3 seconds buffer to allow the filter counts to update asynchronously
+
+        # Wait for the "Show results" button to be clickable (visible and enabled)
+        show_results_xpath = '//button[@data-test-reusables-filters-modal-show-results-button="true" or contains(@class, "search-reusables__secondary-filters-show-results-button")]'
+        try:
+            show_results_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, show_results_xpath)))
+        except Exception:
+            show_results_xpath = '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply current filters to show") or contains(., "Show results")]'
+            show_results_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, show_results_xpath)))
+        
+        try:
+            show_results_button.click()
+        except Exception as click_err:
+            print_lg("Normal click on Show results button failed, trying JS click...", click_err)
+            driver.execute_script("arguments[0].click();", show_results_button)
+        
+        # Wait for results to load after applying all filters
+        buffer(3)
+
+        if SEARCH_PREFERENCES["pause_after_filters"] and "Turn off Pause after search" == pyautogui.confirm("These are your configured search results and filter. It is safe to change them while this dialog is open, any changes later could result in errors and skipping this search run.", "Please check your results", ["Turn off Pause after search", "Look's good, Continue"]):
+            SEARCH_PREFERENCES["pause_after_filters"] = False
 
     except Exception as e:
         print_lg("Setting the preferences failed!")
@@ -286,7 +372,7 @@ def get_job_main_details(job: WebElement, blacklisted_companies: set, rejected_j
     * job_id: Job ID
     * title: Job title
     * company: Company name
-    * work_location: Work location of this job
+    * work_location: Work JOB_FILTERS["location"] of this job
     * work_style: Work style of this job (Remote, On-site, Hybrid)
     * skip: A boolean flag to skip this job
     '''
@@ -336,13 +422,13 @@ def check_blacklist(rejected_jobs: set, job_id: str, company: str, blacklisted_c
     about_company_org = about_company_org.text
     about_company = about_company_org.lower()
     skip_checking = False
-    for word in about_company_good_words:
+    for word in JOB_SKIPPING["about_company_good_words"]:
         if word.lower() in about_company:
             print_lg(f'Found the word "{word}". So, skipped checking for blacklist words.')
             skip_checking = True
             break
     if not skip_checking:
-        for word in about_company_bad_words: 
+        for word in JOB_SKIPPING["about_company_bad_words"]: 
             if word.lower() in about_company: 
                 rejected_jobs.add(job_id)
                 blacklisted_companies.add(company)
@@ -393,23 +479,42 @@ def get_job_description(
         skip = False
         skipReason = None
         skipMessage = None
-        for word in bad_words:
+        
+        # 1. Any mandatory words check (OR logic)
+        mandatory_any = JOB_SKIPPING.get("mandatory_words_any", [])
+        if mandatory_any:
+            found_any = any(word.lower() in jobDescriptionLow for word in mandatory_any)
+            if not found_any:
+                skipMessage = f'\n{jobDescription}\n\nDescription does not contain ANY of the mandatory words: {mandatory_any}. Skipping this job!\n'
+                skipReason = "Missing Mandatory Keywords (ANY)"
+                skip = True
+
+        # 2. All mandatory words check (AND logic)
+        mandatory_all = JOB_SKIPPING.get("mandatory_words_all", [])
+        if not skip and mandatory_all:
+            missing_words = [word for word in mandatory_all if word.lower() not in jobDescriptionLow]
+            if missing_words:
+                skipMessage = f'\n{jobDescription}\n\nDescription is missing required mandatory words: {missing_words}. Skipping this job!\n'
+                skipReason = "Missing Mandatory Keywords (ALL)"
+                skip = True
+                
+        for word in JOB_SKIPPING["bad_words"]:
             if word.lower() in jobDescriptionLow:
                 skipMessage = f'\n{jobDescription}\n\nContains bad word "{word}". Skipping this job!\n'
                 skipReason = "Found a Bad Word in About Job"
                 skip = True
                 break
-        if not skip and security_clearance == False and ('polygraph' in jobDescriptionLow or 'clearance' in jobDescriptionLow or 'secret' in jobDescriptionLow):
+        if not skip and JOB_SKIPPING["security_clearance"] == False and ('polygraph' in jobDescriptionLow or 'clearance' in jobDescriptionLow or 'secret' in jobDescriptionLow):
             skipMessage = f'\n{jobDescription}\n\nFound "Clearance" or "Polygraph". Skipping this job!\n'
             skipReason = "Asking for Security clearance"
             skip = True
         if not skip:
-            if did_masters and 'master' in jobDescriptionLow:
+            if JOB_SKIPPING["did_masters"] and 'master' in jobDescriptionLow:
                 print_lg(f'Found the word "master" in \n{jobDescription}')
                 found_masters = 2
             experience_required = extract_years_of_experience(jobDescription)
-            if current_experience > -1 and experience_required > current_experience + found_masters:
-                skipMessage = f'\n{jobDescription}\n\nExperience required {experience_required} > Current Experience {current_experience + found_masters}. Skipping this job!\n'
+            if JOB_SKIPPING["current_experience"] > -1 and experience_required > JOB_SKIPPING["current_experience"] + found_masters:
+                skipMessage = f'\n{jobDescription}\n\nExperience required {experience_required} > Current Experience {JOB_SKIPPING["current_experience"] + found_masters}. Skipping this job!\n'
                 skipReason = "Required experience is high"
                 skip = True
     except Exception as e:
@@ -466,7 +571,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 options = "".join([f' "{option}",' for option in optionsText])
             prev_answer = selected_option
             if overwrite_previous_answers or selected_option == "Select an option":
-                ##> ------ WINDY_WINDWARD Email:karthik.sarode23@gmail.com - Added fuzzy logic to answer location based questions ------
+                ##> ------ WINDY_WINDWARD Email:karthik.sarode23@gmail.com - Added fuzzy logic to answer JOB_FILTERS["location"] based questions ------
                 if 'email' in label or 'phone' in label: 
                     answer = prev_answer
                 elif 'gender' in label or 'sex' in label: 
@@ -475,8 +580,8 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     answer = disability_status
                 elif 'proficiency' in label: 
                     answer = 'Professional'
-                # Add location handling
-                elif any(loc_word in label for loc_word in ['location', 'city', 'state', 'country']):
+                # Add JOB_FILTERS["location"] handling
+                elif any(loc_word in label for loc_word in ['JOB_FILTERS["location"]', 'city', 'state', 'country']):
                     if 'country' in label:
                         answer = country 
                     elif 'state' in label:
@@ -598,7 +703,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 if 'experience' in label or 'years' in label: answer = years_of_experience
                 elif 'phone' in label or 'mobile' in label: answer = phone_number
                 elif 'street' in label: answer = street
-                elif 'city' in label or 'location' in label or 'address' in label:
+                elif 'city' in label or 'JOB_FILTERS["location"]' in label or 'address' in label:
                     answer = current_city if current_city else work_location
                     do_actions = True
                 elif 'signature' in label: answer = full_name # 'signature' in label or 'legal name' in label or 'your name' in label or 'full name' in label: answer = full_name     # What if question is 'name of the city or university you attend, name of referral etc?'
@@ -615,7 +720,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     elif 'week' in label:
                         answer = notice_period_weeks
                     else: answer = notice_period
-                elif 'salary' in label or 'compensation' in label or 'ctc' in label or 'pay' in label: 
+                elif 'JOB_FILTERS["salary"]' in label or 'compensation' in label or 'ctc' in label or 'pay' in label: 
                     if 'current' in label or 'present' in label:
                         if 'month' in label:
                             answer = current_ctc_monthly
@@ -757,7 +862,7 @@ def external_apply(pagination_element: WebElement, job_id: str, job_link: str, r
     Function to open new tab and save external job application links
     '''
     global tabs_count, dailyEasyApplyLimitReached
-    if easy_apply_only:
+    if JOB_FILTERS["easy_apply_only"]:
         try:
             if "exceeded the daily application limit" in driver.find_element(By.CLASS_NAME, "artdeco-inline-feedback__message").text: dailyEasyApplyLimitReached = True
         except: pass
@@ -786,7 +891,7 @@ def external_apply(pagination_element: WebElement, job_id: str, job_link: str, r
 
 def follow_company(modal: WebDriver = driver) -> None:
     '''
-    Function to follow or un-follow easy applied companies based om `follow_companies`
+    Function to follow or un-follow easy applied JOB_FILTERS["companies"] based om `follow_companies`
     '''
     try:
         follow_checkbox_input = try_xp(modal, ".//input[@id='follow-company-checkbox' and @type='checkbox']", False)
@@ -865,15 +970,30 @@ def discard_job() -> None:
 
 # Function to apply to jobs
 def apply_to_jobs(search_terms: list[str]) -> None:
+    '''
+    Searches for every job title in the `search_terms` and applies to them.
+    '''
+    global total_runs
     applied_jobs = get_applied_job_ids()
     rejected_jobs = set()
     blacklisted_companies = set()
-    global current_city, failed_count, skip_count, easy_applied_count, external_jobs_count, tabs_count, pause_before_submit, pause_at_failed_question, useNewResume
+    global current_city, failed_count, skip_count, easy_applied_count, external_jobs_count, tabs_count, pause_before_submit, pause_at_failed_question, useNewResume, dailyEasyApplyLimitReached
     current_city = current_city.strip()
 
-    if randomize_search_order:  shuffle(search_terms)
+    if SEARCH_PREFERENCES["randomize_search_order"]:  shuffle(search_terms)
     for searchTerm in search_terms:
         driver.get(f"https://www.linkedin.com/jobs/search/?keywords={searchTerm}")
+        buffer(3)
+        try:
+            # Check if we landed on the new AI search experience and switch to classic
+            classic_button = driver.find_elements(By.XPATH, '//*[contains(text(), "classic search") or contains(text(), "classic job search")]')
+            if classic_button:
+                print_lg("Found 'classic search' button. Switching back to classic job search!")
+                driver.execute_script("arguments[0].click();", classic_button[0])
+                buffer(3)
+        except Exception:
+            pass
+
         print_lg("\n________________________________________________________________________________________________________________________\n")
         print_lg(f'\n>>>> Now searching for "{searchTerm}" <<<<\n\n')
 
@@ -881,7 +1001,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
 
         current_count = 0
         try:
-            while current_count < switch_number:
+            while current_count < SEARCH_PREFERENCES["switch_number"]:
                 # Wait until job listings are loaded
                 wait.until(EC.presence_of_all_elements_located((By.XPATH, "//li[@data-occludable-job-id]")))
 
@@ -894,7 +1014,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
             
                 for job in job_listings:
                     if keep_screen_awake: pyautogui.press('shiftright')
-                    if current_count >= switch_number: break
+                    if current_count >= SEARCH_PREFERENCES["switch_number"]: break
                     print_lg("\n-@-\n")
 
                     job_id,title,company,work_location,work_style,skip = get_job_main_details(job, blacklisted_companies, rejected_jobs)
@@ -1003,12 +1123,24 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                     uploaded = False
                     # Case 1: Easy Apply Button
                     # First try the classic button with "Easy" in aria-label
+                    if dailyEasyApplyLimitReached and not JOB_FILTERS.get("easy_apply_only", False):
+                        is_easy_apply = try_xp(driver, ".//button[contains(@class,'jobs-apply-button') and contains(@class, 'artdeco-button--3') and contains(@aria-label, 'Easy')]", click=False)
+                        if is_easy_apply:
+                            print_lg("Skipping Easy Apply job because daily limit is reached.")
+                            discard_job()
+                            continue
+                    
                     is_easy_apply = try_xp(driver, ".//button[contains(@class,'jobs-apply-button') and contains(@class, 'artdeco-button--3') and contains(@aria-label, 'Easy')]")
+                    
                     # Fallback 1: check if apply link contains Easy Apply URL pattern
                     if not is_easy_apply:
                         try:
                             apply_link_el = driver.find_element(By.XPATH, ".//a[contains(@href, 'openSDUIApplyFlow=true')]")
                             if apply_link_el:
+                                if dailyEasyApplyLimitReached and not JOB_FILTERS.get("easy_apply_only", False):
+                                    print_lg("Skipping Easy Apply job because daily limit is reached.")
+                                    discard_job()
+                                    continue
                                 apply_link_el.click()
                                 is_easy_apply = True
                                 print_lg("Detected Easy Apply via URL pattern (openSDUIApplyFlow)")
@@ -1034,6 +1166,12 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                         find_by_class(driver, "jobs-easy-apply-modal")
                                         is_easy_apply = True
                                         print_lg("Detected Easy Apply via modal appearance after click")
+                                        if dailyEasyApplyLimitReached and not JOB_FILTERS.get("easy_apply_only", False):
+                                            print_lg("Skipping Easy Apply job because daily limit is reached.")
+                                            try: actions.send_keys(Keys.ESCAPE).perform()
+                                            except: pass
+                                            discard_job()
+                                            continue
                                     except:
                                         # Modal didn't appear — dismiss
                                         try: actions.send_keys(Keys.ESCAPE).perform()
@@ -1041,6 +1179,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                         except:
                             pass
                     if is_easy_apply:
+                        modal = None
                         try: 
                             try:
                                 errored = ""
@@ -1101,6 +1240,15 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                         except Exception as e:
                             print_lg("Failed to Easy apply!")
                             # print_lg(e)
+                            if "limit daily submissions to maintain quality and prevent bots" in driver.page_source.lower():
+                                dailyEasyApplyLimitReached = True
+                                print_lg("\n###############  Daily application limit for Easy Apply is reached!  ###############\n")
+                                if JOB_FILTERS.get("easy_apply_only", False):
+                                    return
+                                else:
+                                    failed_job(job_id, job_link, resume, date_listed, "Easy Apply Limit Reached", e, application_link, screenshot_name)
+                                    discard_job()
+                                    continue
                             critical_error_log("Somewhere in Easy Apply process",e)
                             failed_job(job_id, job_link, resume, date_listed, "Problem in Easy Applying", e, application_link, screenshot_name)
                             failed_count += 1
@@ -1110,8 +1258,9 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                         # Case 2: Apply externally
                         skip, application_link, tabs_count = external_apply(pagination_element, job_id, job_link, resume, date_listed, application_link, screenshot_name)
                         if dailyEasyApplyLimitReached:
-                            print_lg("\n###############  Daily application limit for Easy Apply is reached!  ###############\n")
-                            return
+                            if JOB_FILTERS.get("easy_apply_only", False):
+                                print_lg("\n###############  Daily application limit for Easy Apply is reached!  ###############\n")
+                                return
                         if skip: continue
 
                     submitted_jobs(job_id, title, company, work_location, work_style, description, experience_required, skills, hr_name, hr_link, resume, reposted, date_listed, date_applied, job_link, application_link, questions_list, connect_request)
@@ -1150,13 +1299,13 @@ def apply_to_jobs(search_terms: list[str]) -> None:
 
         
 def run(total_runs: int) -> int:
-    if dailyEasyApplyLimitReached:
+    if dailyEasyApplyLimitReached and JOB_FILTERS.get("easy_apply_only", False):
         return total_runs
     print_lg("\n########################################################################################################################\n")
     print_lg(f"Date and Time: {datetime.now()}")
     print_lg(f"Cycle number: {total_runs}")
-    print_lg(f"Currently looking for jobs posted within '{date_posted}' and sorting them by '{sort_by}'")
-    apply_to_jobs(search_terms)
+    print_lg(f"Currently looking for jobs posted within '{JOB_FILTERS['date_posted']}' and sorting them by '{JOB_FILTERS['sort_by']}'")
+    apply_to_jobs(SEARCH_PREFERENCES["search_terms"])
     print_lg("########################################################################################################################\n")
     if not dailyEasyApplyLimitReached:
         print_lg("Sleeping for 10 min...")
@@ -1224,15 +1373,13 @@ def main() -> None:
         while(run_non_stop):
             if cycle_date_posted:
                 date_options = ["Any time", "Past month", "Past week", "Past 24 hours"]
-                global date_posted
-                date_posted = date_options[date_options.index(date_posted)+1 if date_options.index(date_posted)+1 > len(date_options) else -1] if stop_date_cycle_at_24hr else date_options[0 if date_options.index(date_posted)+1 >= len(date_options) else date_options.index(date_posted)+1]
+                JOB_FILTERS["date_posted"] = date_options[date_options.index(JOB_FILTERS["date_posted"])+1 if date_options.index(JOB_FILTERS["date_posted"])+1 > len(date_options) else -1] if stop_date_cycle_at_24hr else date_options[0 if date_options.index(JOB_FILTERS["date_posted"])+1 >= len(date_options) else date_options.index(JOB_FILTERS["date_posted"])+1]
             if alternate_sortby:
-                global sort_by
-                sort_by = "Most recent" if sort_by == "Most relevant" else "Most relevant"
+                JOB_FILTERS["sort_by"] = "Most recent" if JOB_FILTERS["sort_by"] == "Most relevant" else "Most relevant"
                 total_runs = run(total_runs)
-                sort_by = "Most recent" if sort_by == "Most relevant" else "Most relevant"
+                JOB_FILTERS["sort_by"] = "Most recent" if JOB_FILTERS["sort_by"] == "Most relevant" else "Most relevant"
             total_runs = run(total_runs)
-            if dailyEasyApplyLimitReached:
+            if dailyEasyApplyLimitReached and JOB_FILTERS.get("easy_apply_only", False):
                 break
         
 
@@ -1242,8 +1389,11 @@ def main() -> None:
         critical_error_log("In Applier Main", e)
         pyautogui.alert(e,alert_title)
     finally:
-        summary = "Total runs: {}\nJobs Easy Applied: {}\nExternal job links collected: {}\nTotal applied or collected: {}\nFailed jobs: {}\nIrrelevant jobs skipped: {}\n".format(total_runs,easy_applied_count,external_jobs_count,easy_applied_count + external_jobs_count,failed_count,skip_count)
+        limit_warning = "\n🚨 AUTOMATION STOPPED: Daily Easy Apply Limit Reached! 🚨\n" if dailyEasyApplyLimitReached else ""
+        summary = "{}Total runs: {}\nJobs Easy Applied: {}\nExternal job links collected: {}\nTotal applied or collected: {}\nFailed jobs: {}\nIrrelevant jobs skipped: {}\n".format(limit_warning, total_runs,easy_applied_count,external_jobs_count,easy_applied_count + external_jobs_count,failed_count,skip_count)
         print_lg(summary)
+        if dailyEasyApplyLimitReached:
+            print_lg("\n🚨 AUTOMATION STOPPED: Daily Easy Apply Limit Reached! 🚨\n")
         print_lg("\n\nTotal runs:                     {}".format(total_runs))
         print_lg("Jobs Easy Applied:              {}".format(easy_applied_count))
         print_lg("External job links collected:   {}".format(external_jobs_count))

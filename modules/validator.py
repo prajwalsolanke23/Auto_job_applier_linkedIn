@@ -103,7 +103,7 @@ def validate_questions() -> None | ValueError | TypeError:
     check_boolean(overwrite_previous_answers, "overwrite_previous_answers")
 
 
-from config.search import *
+from config.search import SEARCH_PREFERENCES, JOB_FILTERS, JOB_SKIPPING
 def validate_search() -> None | ValueError | TypeError:
     '''
     Validates all variables in the `/config/search.py` file.
@@ -111,41 +111,41 @@ def validate_search() -> None | ValueError | TypeError:
     global __validation_file_path
     __validation_file_path = "config/search.py"
 
-    check_list(search_terms, "search_terms", min_length=1)
-    check_string(search_location, "search_location")
-    check_int(switch_number, "switch_number", 1)
-    check_boolean(randomize_search_order, "randomize_search_order")
+    check_list(SEARCH_PREFERENCES["search_terms"], 'SEARCH_PREFERENCES["search_terms"]', min_length=1)
+    check_string(SEARCH_PREFERENCES["search_location"], 'SEARCH_PREFERENCES["search_location"]')
+    check_int(SEARCH_PREFERENCES["switch_number"], 'SEARCH_PREFERENCES["switch_number"]', 1)
+    check_boolean(SEARCH_PREFERENCES["randomize_search_order"], 'SEARCH_PREFERENCES["randomize_search_order"]')
 
-    check_string(sort_by, "sort_by", ["", "Most recent", "Most relevant"])
-    check_string(date_posted, "date_posted", ["", "Any time", "Past month", "Past week", "Past 24 hours"])
-    check_string(salary, "salary")
+    check_string(JOB_FILTERS["sort_by"], 'JOB_FILTERS["sort_by"]', ["", "Most recent", "Most relevant"])
+    check_string(JOB_FILTERS["date_posted"], 'JOB_FILTERS["date_posted"]', ["", "Any time", "Past month", "Past week", "Past 24 hours"])
+    check_string(JOB_FILTERS["salary"], 'JOB_FILTERS["salary"]')
 
-    check_boolean(easy_apply_only, "easy_apply_only")
+    check_boolean(JOB_FILTERS["easy_apply_only"], 'JOB_FILTERS["easy_apply_only"]')
 
-    check_list(experience_level, "experience_level", ["Internship", "Entry level", "Associate", "Mid-Senior level", "Director", "Executive"])
-    check_list(job_type, "job_type", ["Full-time", "Part-time", "Contract", "Temporary", "Volunteer", "Internship", "Other"])
-    check_list(on_site, "on_site", ["On-site", "Remote", "Hybrid"])
+    check_list(JOB_FILTERS["experience_level"], 'JOB_FILTERS["experience_level"]', ["Internship", "Entry level", "Associate", "Mid-Senior level", "Director", "Executive"])
+    check_list(JOB_FILTERS["job_type"], 'JOB_FILTERS["job_type"]', ["Full-time", "Part-time", "Contract", "Temporary", "Volunteer", "Internship", "Other"])
+    check_list(JOB_FILTERS["on_site"], 'JOB_FILTERS["on_site"]', ["On-site", "Remote", "Hybrid"])
 
-    check_list(companies, "companies")
-    check_list(location, "location")
-    check_list(industry, "industry")
-    check_list(job_function, "job_function")
-    check_list(job_titles, "job_titles")
-    check_list(benefits, "benefits")
-    check_list(commitments, "commitments")
+    check_list(JOB_FILTERS["companies"], 'JOB_FILTERS["companies"]')
+    check_list(JOB_FILTERS["location"], 'JOB_FILTERS["location"]')
+    check_list(JOB_FILTERS["industry"], 'JOB_FILTERS["industry"]')
+    check_list(JOB_FILTERS["job_function"], 'JOB_FILTERS["job_function"]')
+    check_list(JOB_FILTERS["job_titles"], 'JOB_FILTERS["job_titles"]')
+    check_list(JOB_FILTERS["benefits"], 'JOB_FILTERS["benefits"]')
+    check_list(JOB_FILTERS["commitments"], 'JOB_FILTERS["commitments"]')
 
-    check_boolean(under_10_applicants, "under_10_applicants")
-    check_boolean(in_your_network, "in_your_network")
-    check_boolean(fair_chance_employer, "fair_chance_employer")
+    check_boolean(JOB_FILTERS["under_10_applicants"], 'JOB_FILTERS["under_10_applicants"]')
+    check_boolean(JOB_FILTERS["in_your_network"], 'JOB_FILTERS["in_your_network"]')
+    check_boolean(JOB_FILTERS["fair_chance_employer"], 'JOB_FILTERS["fair_chance_employer"]')
 
-    check_boolean(pause_after_filters, "pause_after_filters")
+    check_boolean(SEARCH_PREFERENCES["pause_after_filters"], 'SEARCH_PREFERENCES["pause_after_filters"]')
 
-    check_list(about_company_bad_words, "about_company_bad_words")
-    check_list(about_company_good_words, "about_company_good_words")
-    check_list(bad_words, "bad_words")
-    check_boolean(security_clearance, "security_clearance")
-    check_boolean(did_masters, "did_masters")
-    check_int(current_experience, "current_experience", -1)
+    check_list(JOB_SKIPPING["about_company_bad_words"], 'JOB_SKIPPING["about_company_bad_words"]')
+    check_list(JOB_SKIPPING["about_company_good_words"], 'JOB_SKIPPING["about_company_good_words"]')
+    check_list(JOB_SKIPPING["bad_words"], 'JOB_SKIPPING["bad_words"]')
+    check_boolean(JOB_SKIPPING["security_clearance"], 'JOB_SKIPPING["security_clearance"]')
+    check_boolean(JOB_SKIPPING["did_masters"], 'JOB_SKIPPING["did_masters"]')
+    check_int(JOB_SKIPPING["current_experience"], 'JOB_SKIPPING["current_experience"]', -1)
 
 
 
